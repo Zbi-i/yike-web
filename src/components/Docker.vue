@@ -82,8 +82,7 @@
             v-for="lable in lableList"
             :key="lable.id"
             :id="'lable-' + lable.id"
-            @click="(event) => lableHandleClick(event, lable.lable_name)"
-          >
+            @click="(event) => lableHandleClick(event, lable.lable_name)">
             {{ lable.lable_name }}
           </span>
         </ul>
@@ -387,16 +386,24 @@
 
 <script>
 import {
-  computed, nextTick, reactive, ref,
+  computed, toRefs, reactive, ref,
 } from 'vue';
+import { useStore } from 'vuex';
 import { useCommentFromFunEffect, isMobile } from '../js/tools';
 import { get, post } from '../utils/axios';
+import Storage from '../module/storage';
+
 // 发表动态/返回
-const useBarEffect = (rawFiles, lables, VisibleRange) => {
+const useBarEffect = (rawFiles, momentLables, loginIsShowFun, submitMomentCallback) => {
   const textareaDOM = ref('');
   const createMomentIsShow = ref(false);
   const createMomentHandleClikc = () => {
-    createMomentIsShow.value = !createMomentIsShow.value;
+    const isLogin = Storage.get('isLogin');
+    if (JSON.parse(isLogin)) {
+      createMomentIsShow.value = !createMomentIsShow.value;
+    } else {
+      loginIsShowFun.value('发表动态');
+    }
   };
   const submitIsLock = computed(() => {
     const pictureCount = Reflect.ownKeys(rawFiles).length;
@@ -406,18 +413,26 @@ const useBarEffect = (rawFiles, lables, VisibleRange) => {
   });
   const handleSubmit = () => {
     if (submitIsLock.value) return;
-    const content = textareaDOM.value.value;
+    const content = textareaDOM.value || '';
     const formData = new FormData();
     formData.append('content', content);
+    const lables = [];
+    Object.keys(momentLables).forEach((key) => {
+      lables.push(key);
+    });
+    formData.append('lables', JSON.stringify(lables));
     Object.values(rawFiles).forEach((rawfile) => {
-      formData.append('picture', rawfile.file, `${rawfile.id}.jpg`);
+      formData.append('picture', rawfile.file, `${rawfile.id}`);
     });
     post('moment', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-    }).then((response) => {
-      console.log(response);
+    }).then(async (response) => {
+      // vuex
+      textareaDOM.value = '';
+      await submitMomentCallback(response.momentId);
+      createMomentHandleClikc();
     }).catch((error) => {
       console.log(error);
     });
@@ -554,6 +569,8 @@ const useLableEffect = () => {
   getLableList(0, 5);
 
   const lableHandleClick = (event, id) => {
+    event.stopPropagation();
+
     const newEvent = event?.target || event;
     newEvent.classList.toggle('click');
     if (data.momentLables[id]) {
@@ -574,14 +591,16 @@ const useLableEffect = () => {
       if (moveX < -(diffWidth - diffFatherWidth) || moveX > 0) return;
       dragLable.value.style.left = `${moveX}px`;
     };
+    const handlemouseup = () => {
+      document.removeEventListener('mousemove', handlemousemove);
+      document.removeEventListener('mouseup', handlemouseup);
+    };
     const handleMousedown = (event) => {
       diffX = event.offsetX;
       diffWidth = dragLable.value.clientWidth;
       diffFatherWidth = document.getElementById('lable').clientWidth;
-      dragLable.value.addEventListener('mousemove', handlemousemove);
-    };
-    const handlemouseup = () => {
-      dragLable.value.removeEventListener('mousemove', handlemousemove);
+      document.addEventListener('mousemove', handlemousemove);
+      document.addEventListener('mouseup', handlemouseup);
     };
 
     return {
@@ -593,7 +612,6 @@ const useLableEffect = () => {
   const customInputLableIsShow = ref(false);
   const markedWords = ref('自定义标签最多八个字');
   const customLableHandleClick = () => {
-    console.log('123456');
     customLableIsShow.value = !customLableIsShow.value;
   };
   const customHandleInput = (event) => {
@@ -655,7 +673,15 @@ const useLableEffect = () => {
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
   name: 'Docker',
-  setup() {
+  props: {
+    loginIsShowFun: {
+      type: Function,
+      required: true,
+    },
+  },
+  setup(props) {
+    const { loginIsShowFun } = toRefs(props);
+    const store = useStore();
     // 图片上传
     const {
       fileInput,
@@ -691,13 +717,19 @@ export default {
       textareaInput, textareaFocus, textareaPropUp,
     } = useCommentFromFunEffect();
     // 发表动态
+    const submitMomentCallback = async (momentId) => {
+      momentLables.value = {};
+      rawFiles.value = {};
+      const moment = await get(`moment/${momentId}`);
+      store.state.momentList[moment.id] = moment;
+    };
     const {
       createMomentIsShow,
       createMomentHandleClikc,
       handleSubmit,
       textareaDOM,
       submitIsLock,
-    } = useBarEffect(rawFiles, lableList);
+    } = useBarEffect(rawFiles, momentLables, loginIsShowFun, submitMomentCallback);
     return {
       createMomentIsShow,
       handleSubmit,

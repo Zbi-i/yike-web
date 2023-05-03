@@ -69,7 +69,7 @@
         <div class="moment_picture" v-for="picture in moment.picture" :key="picture.picturePath"
         @click="(event) => pictureZoomIn(event, moment.id, picture.id)">
           <img class="moment_picture_img"
-               :src="`http://localhost:8000/moment/picture/middle/${picture.picturePath}`"/>
+               :src="`${APP_HOST}moment/picture/middle/${picture.picturePath}`"/>
         </div>
       </div>
     </div>
@@ -151,16 +151,14 @@
   </transition>
   <div class="picture-box" v-show="originalPictureWrapper" @click="pictureZoomOut"
     ref="originalPictureBox">
-    <img src="" class="thumbnail" v-show="!isShowOriginalPicture"/>
-    <img src="" class="original-picture" v-show="isShowOriginalPicture"
-      @load="isShowOriginalPicture = !isShowOriginalPicture"/>
+    <img src="" class="thumbnail"/>
+    <img src="" class="original-picture" v-show="isShowOriginalPicture" @load="originalOnload"/>
   </div>
 </div>
 
 <div class="warning" v-show="warningMessage !== ''">
   {{ warningMessage }}
 </div>
-<login v-show="loginIsShow" v-model="loginIsShow" :message="message" />
 </template>
 <style lang="scss" scoped>
 @import '../style/viriables';
@@ -440,7 +438,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba($warning-bg-color, 0.5);
+    background-color: rgba($warning-bg-color, 1);
     z-index: 9;
   }
   .picture-box{
@@ -453,6 +451,8 @@
       transition: all .3s ease;
     }
     .original-picture{
+      position: absolute;
+      left: 0;
       z-index: 100;
     }
   }
@@ -471,13 +471,12 @@ import {
   ref, computed, toRefs, nextTick,
 } from 'vue';
 import { useStore } from 'vuex';
-
 import { get, post } from '../utils/axios';
 import { insertAfter, useCommentFromFunEffect } from '../js/tools';
 import defaultAvatar from '../images/default_avatar.jpg';
-import Login from '../views/login/Login.vue';
+import Storage from '../module/storage';
 
-// 滚动获取数据
+// 滚动获取数据likeHandleClick
 const useGetMomentListEffect = (store) => {
   const offset = ref(0);
   const size = ref(5);
@@ -517,22 +516,14 @@ const useGetMomentListEffect = (store) => {
   });
   return { getMomentList };
 };
-// 登录
-const useLoginEffect = () => {
-  const loginIsShow = ref(false);
-  const message = ref('');
-  const loginIsShowFun = (value) => {
-    if (value) message.value = value;
-    loginIsShow.value = !loginIsShow.value;
-  };
-  return {
-    loginIsShow, message, loginIsShowFun,
-  };
-};
 // 点赞
 const useLikeEffect = (userInfo, momentList, loginIsShowFun) => {
-  const likeHandleClick = async (momentId, index) => {
-    const likeUser = momentList.value[index].likeUsers;
+  const likeHandleClick = async (momentId) => {
+    const likeUser = momentList.value[momentId].likeUsers;
+    if (!JSON.parse(Storage.get('isLogin'))) {
+      loginIsShowFun.value('点赞');
+      return;
+    }
     try {
       const res = await post('like', { momentId });
       if (res) {
@@ -541,7 +532,7 @@ const useLikeEffect = (userInfo, momentList, loginIsShowFun) => {
         delete likeUser[userInfo.value.id];
       }
     } catch (err) {
-      loginIsShowFun('点赞');
+      loginIsShowFun.value('点赞');
     }
   };
   const handleLikeItOrNot = (likeUserList) => computed(() => !!likeUserList?.[userInfo.value?.id]);
@@ -558,7 +549,8 @@ const useCommentEffect = (userInfo, momentList, loginIsShowFun) => {
 
   const commentIconClick = (momentId, commentInfo) => {
     if (!momentId || !userInfo?.value?.id) {
-      loginIsShowFun('评论');
+      console.log(loginIsShowFun);
+      loginIsShowFun.value('评论');
       return;
     }
 
@@ -608,6 +600,7 @@ const useCommentEffect = (userInfo, momentList, loginIsShowFun) => {
         replyComment,
       };
       momentList.value?.[currentMomentId]?.comments?.push(comment);
+      console.log(momentList.value?.[currentMomentId]?.comments);
       commentTextaea.value.value = '';
     });
   };
@@ -625,6 +618,9 @@ const useCommentPictureEffect = () => {
   const isShowOriginalPicture = ref(false);
   const isShowShade = ref(false);
   const originalPictureBox = ref(null);
+  const originalOnload = () => {
+    isShowOriginalPicture.value = true;
+  };
   let smallPictureRect;
   let pictureBox;
   const pictureZoomIn = (event) => {
@@ -641,6 +637,7 @@ const useCommentPictureEffect = () => {
       left: ${pictureBox.offsetLeft / 100}rem;
       width: ${smallPictureRect.width / 100}rem;
       height: ${smallPictureRect.height / 100}rem;
+      opacity: 0;
     `;
     const windowWidth = document.getElementById('momentWrapper').offsetWidth;
     originalPictureBox.value.style.cssText = `
@@ -649,9 +646,9 @@ const useCommentPictureEffect = () => {
       width: ${windowWidth / 100}rem;
       height: auto;
       transform: translateY(-50%);
+      opacity: 1;
     `;
     // 先显示缩略图，再显示高清大图
-    console.log(originalPictureBox.value.childNodes);
     originalPictureBox.value.childNodes[0].src = target.src;
     // 替换字符串中的middle为master
     const originalPictureSrc = target.src.replace(/middle/, 'master');
@@ -659,7 +656,7 @@ const useCommentPictureEffect = () => {
   };
   let pictureLock = false;
   const pictureZoomOut = () => {
-    // if (pictureLock) return;
+    if (pictureLock) return;
     pictureLock = true;
     isShowShade.value = !isShowShade.value;
     originalPictureBox.value.style.cssText = `
@@ -667,17 +664,19 @@ const useCommentPictureEffect = () => {
       left: ${pictureBox.offsetLeft / 100}rem;
       width: ${smallPictureRect.width / 100}rem;
       height: ${smallPictureRect.height / 100}rem;
+      opacity: 0;
     `;
     setTimeout(() => {
       pictureLock = false;
       originalPictureWrapper.value = !originalPictureWrapper.value;
-    }, 5000);
+    }, 300);
   };
   return {
     pictureZoomIn,
     pictureZoomOut,
     originalPictureWrapper,
     originalPictureBox,
+    originalOnload,
     isShowOriginalPicture,
     isShowShade,
   };
@@ -723,17 +722,19 @@ const useWarningEffect = () => {
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
   name: 'Comment',
-  components: { Login },
-  setup() {
+  props: {
+    loginIsShowFun: {
+      type: Function,
+      required: true,
+    },
+  },
+  setup(props) {
+    const { loginIsShowFun } = toRefs(props);
     // 获取数据
     const store = useStore();
     const { userInfo, momentList } = toRefs(store.state);
     // 多久之前
     const { howLongAgo } = useHowLongAgoEffect();
-    // 登录
-    const {
-      isLogin, loginIsShow, message, loginIsShowFun,
-    } = useLoginEffect();
     const { getMomentList } = useGetMomentListEffect(store);
     getMomentList(0, 5);
     // 喜欢
@@ -746,6 +747,7 @@ export default {
       pictureZoomOut,
       originalPictureWrapper,
       originalPictureBox,
+      originalOnload,
       isShowOriginalPicture,
       isShowShade,
     } = useCommentPictureEffect();
@@ -762,10 +764,7 @@ export default {
     const { warningMessage, warningFun } = useWarningEffect();
 
     return {
-      message,
       howLongAgo,
-      isLogin,
-      loginIsShow,
       momentList,
       defaultAvatar,
       commentIconClick,
@@ -786,6 +785,7 @@ export default {
       pictureZoomOut,
       originalPictureWrapper,
       originalPictureBox,
+      originalOnload,
       isShowOriginalPicture,
       isShowShade,
     };

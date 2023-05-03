@@ -3,8 +3,9 @@
     <header>
       <h1>一刻心情</h1>
     </header>
-    <Comment/>
-    <Docker/>
+    <Comment :loginIsShowFun="loginIsShowFun"/>
+    <Docker :loginIsShowFun="loginIsShowFun"/>
+    <login v-show="loginIsShow" v-model="loginIsShow" :message="message" />
   </main>
 </template>
 
@@ -33,14 +34,37 @@ main{
 </style>
 
 <script>
+import { ref } from 'vue';
 import Comment from '../../components/Comment.vue';
 import Docker from '../../components/Docker.vue';
+import Login from '../login/Login.vue';
+
+// 登录
+const useLoginEffect = () => {
+  const loginIsShow = ref(false);
+  const message = ref('');
+  const loginIsShowFun = (value) => {
+    if (value) message.value = value;
+    loginIsShow.value = !loginIsShow.value;
+  };
+  return {
+    loginIsShow, message, loginIsShowFun,
+  };
+};
 
 export default {
   name: 'HomePage',
-  components: { Comment, Docker },
+  components: { Comment, Docker, Login },
   setup() {
-    return { Comment, Docker };
+    const { loginIsShow, message, loginIsShowFun } = useLoginEffect();
+    return {
+      Comment,
+      Docker,
+      Login,
+      loginIsShow,
+      message,
+      loginIsShowFun,
+    };
   },
 };
 

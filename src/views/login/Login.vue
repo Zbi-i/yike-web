@@ -14,45 +14,53 @@
           </div>
         </div>
         <!-- 登录 -->
-        <form action="" method="post"  v-show="showLogin === 'loginIn'">
+        <form @submit="(event) => loginInBtnClick(event)"  v-show="showLogin === 'loginIn'">
           <div class="login_in">
             <div class="accout">
               <input
                 type="text" name="account" id="login_in_account"
+                autocomplete="username"
                 v-model="loginInInfo.account" placeholder="用户名/邮箱">
             </div>
             <div class="password">
               <input v-model="loginInInfo.password"
+              autocomplete="current-password"
               type="password" name="password" id="login_in_password" placeholder="密码">
             </div>
-            <button
-              id="login_in_btn" :class="{active: loginInBtnLock}" ref="loginInBtn"
-              @click="loginInBtnClick">登录</button>
+            <input
+              id="login_in_btn" class="login_in_btn" type="submit"
+              :class="{active: loginInBtnLock}" ref="loginInBtn" value="登录"/>
           </div>
         </form>
         <!-- 注册 -->
-        <form action="" method="post" v-show="showLogin == 'loginUp'">
+        <form @submit="(event) => loginUpBtnClick(event)" v-show="showLogin == 'loginUp'">
           <div class="login_up">
             <div class="accout">
               <input v-model="loginUpInfo.account"
-                type="text" name="account" id="login_up_account" placeholder="请输入邮箱">
+                type="text" name="account" id="login_up_account"
+                autocomplete="email"
+                placeholder="请输入邮箱">
               <ul></ul>
             </div>
             <div class="username">
               <input v-model="loginUpInfo.username"
+              autocomplete="username"
               type="text" name="username" id="login_up_username" placeholder="请输入用户名">
             </div>
             <div class="password">
               <input v-model="loginUpInfo.password"
+              autocomplete="off"
               type="password" name="password" id="login_up_password" min="6" placeholder="请输入密码">
             </div>
             <div class="confirm_password">
               <input v-model="loginUpInfo.confirmPassword"
+                autocomplete="off"
                 type="password" name="password" id="login_up_confirm_password"
                 min="6" placeholder="确认密码">
             </div>
-            <button :class="{active: loginUpBtnLock, login_up_btn: true}"
-                    @click="loginUpBtnClick" ref="loginUpBtn">注册</button>
+            <input
+              id="login_up_btn" class="login_up_btn" type="submit"
+              :class="{active: loginUpBtnLock, login_up_btn: true}" ref="loginUpBtn" value="注册"/>
           </div>
         </form>
       </div>
@@ -109,7 +117,7 @@
   }
 }
 .login_in, .login_up{
-  .accout, .password, button, .username, .confirm_password{
+  .accout, .password, &_btn, .username, .confirm_password{
     width: 100%;
     height: .4rem;
     padding: 0 .08rem;
@@ -122,12 +130,12 @@
       height: 100%;
     }
   }
-  button{
+  &_btn{
     color: $font-color-reversal;
     background-color: $button-activate-bg-color;
     opacity: .5;
   }
-  button.active{
+  &_btn.active{
     opacity: 1;
   }
 }
@@ -207,14 +215,15 @@ const useLoginInEffect = (router, store, showWarningMessage, closeHandleClick) =
       Storage.set('token', token);
       Storage.set('userInfo', JSON.stringify(user));
       Storage.set('isLogin', true);
-      closeHandleClick();
       store.commit('loginInOrUp');
+      closeHandleClick();
     }, (error) => {
       showWarningMessage('login_in_account', error.data);
     });
   };
   // 登录按钮点击事件
-  const loginInBtnClick = async () => {
+  const loginInBtnClick = async (event) => {
+    event.preventDefault();
     // 执行表单校验，通过后发送登录请求
     if (loginInHandle()) loginIn(loginInInfo.account, loginInInfo.password);
   };
@@ -300,7 +309,8 @@ const useLoginUpEffect = (showWarningMessage, closeHandleClick) => {
     return btnLock;
   });
   // 注册按钮点击事件
-  const loginUpBtnClick = async () => {
+  const loginUpBtnClick = async (event) => {
+    event.preventDefault();
     const isLoginUp = await loginUpHandle();
     if (isLoginUp) {
       post('users', loginUpInfo).then(async (res) => {

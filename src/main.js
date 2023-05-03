@@ -4,4 +4,6 @@ import router from './router/index';
 import store from './store/index';
 import './style/index.scss';
 
-createApp(App).use(router).use(store).mount('#app');
+const app = createApp(App).use(router).use(store);
+app.config.globalProperties.APP_HOST = 'http://localhost:8000/';
+app.mount('#app');
