@@ -9,6 +9,7 @@ function insertAfter(newElement, targetElement) {
     parent?.insertBefore(newElement, targetElement?.nextSibling);
   }
 }
+// 评论表单的功能函数
 const useCommentFromFunEffect = () => {
   const textareaPropUp = ref(null);
   const sendUnlock = ref(false);
@@ -26,14 +27,4 @@ const useCommentFromFunEffect = () => {
     textareaInput, textareaFocus, textareaPropUp, sendUnlock,
   };
 };
-const isMobile = () => {
-  const userAgentInfo = navigator.userAgent;
-  const agents = ['Android', 'iPhone', 'SymbianOS', 'Windows Phone', 'iPad', 'iPod'];
-  for (let i = 0; i < agents.length; i += 1) {
-    if (userAgentInfo.indexOf(agents[i]) > 0) {
-      return true;
-    }
-  }
-  return false;
-};
-export { insertAfter, useCommentFromFunEffect, isMobile };
+export { insertAfter, useCommentFromFunEffect };

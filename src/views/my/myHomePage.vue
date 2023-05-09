@@ -1,5 +1,8 @@
 <template>
   <div class="my-home-page-wrepper">
+    <div class="header-bar">
+      <div class="setting">设置</div>
+    </div>
     <div class="user">
       <div class="user-bg">
         <div class="user-bg-shadow"></div>
@@ -46,7 +49,7 @@
           喜欢
         </li>
       </ul>
-      <div class="moment-list user-moments ">
+      <div class="moment-list user-moments show">
         <div v-for="moment in Object.values(userMomentData.userMoment).reverse()"
           :key="moment.id">
           <div :class="{'moment-item':true,  'plain-text': !moment.picture}">
@@ -78,7 +81,7 @@
         </div>
       </div>
       <div class="moment-list user-private-moments"></div>
-      <div class="moment-list user-like-moments show">
+      <div class="moment-list user-like-moments">
         <template v-for="moment in userMomentData.userLikeMoment" :key="moment.id">
           <div class="like-moment">
             <div class="moment-picture" v-if="moment.picture">
@@ -113,9 +116,30 @@
 <style lang="scss" scoped>
 @import "../../style/viriables.scss";
 .my-home-page-wrepper{
-  width: 3.9rem;
+  position: relative;
+  width: 100%;
   height: 100%;
   margin: 0 auto;
+  .header-bar{
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-between;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 0.44rem;
+    padding: 0 0.12rem;
+    color: $font-color-reversal;
+    box-sizing: border-box;
+    z-index: 1;
+    div{
+      cursor: pointer;
+    }
+    .setting{
+      font-size: 0.16rem;
+    }
+  }
   .user{
     display: flex;
     flex-direction: column;
@@ -302,6 +326,9 @@
         }
       }
     }
+    div.moment-list{
+      display: none;
+    }
     .moment-list.show{
       display: block;
     }
@@ -362,7 +389,7 @@
 <script>
 import { reactive, ref } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { get, post } from '../../utils/axios';
 
 const useUserMomentEffect = (urlUserId, isUserHimself) => {
@@ -454,19 +481,31 @@ const useUserEffect = (userId, store) => {
   const isUserHimself = ref(false);
   const userInfo = ref({});
   const getUserInfo = async () => {
-    userInfo.value = await get(`users/${userId}`);
-    isUserHimself.value = (userId === JSON.stringify(store.state.userInfo.id));
-    return userInfo;
+    const result = await get(`users/${userId}`);
+    isUserHimself.value = (userId === store.state.userInfo.id);
+    userInfo.value = result;
   };
   getUserInfo();
   return { userInfo, isUserHimself };
 };
 export default {
-  name: 'myHomePage',
-  setup() {
+  name: 'MyHomePage',
+  props: {
+    userId: {
+      type: String,
+      default: '',
+    },
+    loginIsShowFun: {
+      type: Function,
+      default: () => {},
+    },
+  },
+  setup(props) {
     const store = useStore();
     const route = useRoute();
-    const { userId } = route.params;
+    const router = useRouter();
+    const { userId } = props.userId ? props : route.params;
+    console.log(props);
     // 获取用户信息
     const { userInfo, isUserHimself } = useUserEffect(userId, store);
     // 获取用户动态
@@ -480,7 +519,7 @@ export default {
     // 获取时间
     const { getDateFunc } = useDateEffect();
     return {
-      userId,
+      router,
       userInfo,
       isUserHimself,
       userMomentData,

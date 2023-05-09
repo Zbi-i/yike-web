@@ -1,23 +1,17 @@
 <template>
   <div class="docker-wrapper">
     <ul class="docker">
-      <li class="home active">
+      <li class="home active" @click="event => dockerItemHandleClick(event, 0)">
         <span>首页</span>
       </li>
       <div class="create" @click="createMomentHandleClikc">
         <span class="iconfont icon-tianjia"></span>
       </div>
-      <li class="message">
+      <li class="message" @click="event => dockerItemHandleClick(event, 1)">
         <span>消息<span class="message-remind" v-show="true"></span></span>
       </li>
-      <li class="my">
-        <span>我的</span>
-        <div class="my-info">
-          <div>
-            <img src=""/>
-          </div>
-          <div></div>
-        </div>
+      <li class="my" @click="event => dockerItemHandleClick(event, 2)">
+          <span>我的</span>
       </li>
     </ul>
   </div>
@@ -42,16 +36,16 @@
       <!-- 动态配图 -->
       <div class="picture-list">
         <div class="picture" v-for="file in rawFiles" :key="file.lastModified" :id="file.id"
-             ref="pictureList">
+            ref="pictureList">
           <img :src="file.filePath" draggable="false"
-               @load="event => makeDraggable(event, file.id)">
+              @load="event => makeDraggable(event, file.id)">
         </div>
         <div class="add-picture iconfont icon-jiahao_o"
-             @click="(event) => handleClick(event)"
-             v-show="Object.keys(rawFiles).length < 9">
+            @click="(event) => handleClick(event)"
+            v-show="Object.keys(rawFiles).length < 9">
           <input type="file" name="picture" id="picture" multiple="multiple"
-                 ref="fileInput"
-                 @change="(event) => handleChange(event)">
+                ref="fileInput"
+                @change="(event) => handleChange(event)">
         </div>
       </div>
       <!-- 动态配图回收站 -->
@@ -103,7 +97,7 @@
           @click="createLableHandleClick">添加</button>
         </div>
         <input type="text" name="lable" ref="customInput" placeholder="输入你的标签"
-               @input="customHandleInput"/>
+              @input="customHandleInput"/>
         <p>
           <span >{{ markedWords }}</span>
         </p>
@@ -121,7 +115,7 @@
           公开<span class="iconfont icon-icon_jiantou-you"></span>
         </span>
       </div>
-    </div>
+  </div>
 </template>
 
 <style lang="scss" scoped>
@@ -151,10 +145,9 @@
   }
 }
 .docker-wrapper{
-  position: absolute;
-  left: 0;
+  position: fixed;
   bottom: 0;
-  width: 3.9rem;
+  width: $pc-default-width;
   height: .4rem;
   line-height: .4rem;
   text-align: center;
@@ -187,14 +180,16 @@
   }
 }
 .create-moment-wrapper{
-  position: absolute;
+  position: fixed;
   top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 0 .24rem;
+  width: $pc-default-width;
+  height: 100%;
   background-color: $bg-color-default;
   overflow: scroll;
+  z-index: 9;
   .moment-text{
     position: relative;
     width: 100%;
@@ -389,7 +384,8 @@ import {
   computed, toRefs, reactive, ref,
 } from 'vue';
 import { useStore } from 'vuex';
-import { useCommentFromFunEffect, isMobile } from '../js/tools';
+import { useRouter } from 'vue-router';
+import { useCommentFromFunEffect } from '../js/tools';
 import { get, post } from '../utils/axios';
 import Storage from '../module/storage';
 
@@ -398,11 +394,17 @@ const useBarEffect = (rawFiles, momentLables, loginIsShowFun, submitMomentCallba
   const textareaDOM = ref('');
   const createMomentIsShow = ref(false);
   const createMomentHandleClikc = () => {
-    const isLogin = Storage.get('isLogin');
-    if (JSON.parse(isLogin)) {
+    const isLogin = JSON.parse(Storage.get('isLogin'));
+    if (isLogin) {
       createMomentIsShow.value = !createMomentIsShow.value;
+      // 隐藏浏览器滚动条
+      if (createMomentIsShow.value) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'auto';
+      }
     } else {
-      loginIsShowFun.value('发表动态');
+      loginIsShowFun('发表动态');
     }
   };
   const submitIsLock = computed(() => {
@@ -543,7 +545,6 @@ const useUploadEffect = () => {
     makeDraggable,
   };
 };
-
 // 添加标签
 const useLableEffect = () => {
   const data = reactive({
@@ -669,6 +670,38 @@ const useLableEffect = () => {
     customInputLableIsShow,
   };
 };
+// 切换页面
+const useChangePageEffect = (changePage, loginIsShowFun) => {
+  const dockerItemHandleClick = (event, id) => {
+    const isLogin = JSON.parse(Storage.get('isLogin'));
+    if (isLogin || id === 0) {
+      const newEvent = event?.target || event;
+      newEvent.classList.toggle('active');
+      if (newEvent.classList.contains('active')) {
+        newEvent.classList.add('active');
+      } else {
+        newEvent.classList.remove('active');
+      }
+      changePage(id);
+    } else {
+      let message = '';
+      switch (id) {
+        case 1:
+          message = '查看消息';
+          break;
+        case 2:
+          message = '访问主页';
+          break;
+        default:
+          break;
+      }
+      loginIsShowFun(message);
+    }
+  };
+  return {
+    dockerItemHandleClick,
+  };
+};
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -678,10 +711,17 @@ export default {
       type: Function,
       required: true,
     },
+    changePage: {
+      type: Function,
+      required: true,
+    },
   },
   setup(props) {
-    const { loginIsShowFun } = toRefs(props);
+    const { loginIsShowFun, changePage } = toRefs(props);
+    const router = useRouter();
     const store = useStore();
+    // 切换页面
+    const { dockerItemHandleClick } = useChangePageEffect(changePage.value, loginIsShowFun.value);
     // 图片上传
     const {
       fileInput,
@@ -729,8 +769,9 @@ export default {
       handleSubmit,
       textareaDOM,
       submitIsLock,
-    } = useBarEffect(rawFiles, momentLables, loginIsShowFun, submitMomentCallback);
+    } = useBarEffect(rawFiles, momentLables, loginIsShowFun.value, submitMomentCallback);
     return {
+      router,
       createMomentIsShow,
       handleSubmit,
       textareaDOM,
@@ -766,6 +807,7 @@ export default {
       customGoBack,
       customHandleInput,
       customInputLableIsShow,
+      dockerItemHandleClick,
     };
   },
 };

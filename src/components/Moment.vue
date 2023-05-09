@@ -67,7 +67,7 @@
               }"
         v-if="moment.picture">
         <div class="moment_picture" v-for="picture in moment.picture" :key="picture.picturePath"
-        @click="(event) => pictureZoomIn(event, moment.id, picture.id)">
+        @click="(event) => ViewTheImageWrapper.pictureZoomIn(event, moment.id, picture.id)">
           <img class="moment_picture_img"
                :src="`${APP_HOST}moment/picture/middle/${picture.picturePath}`"/>
         </div>
@@ -113,7 +113,7 @@
       </span>
     </div>
     <!-- 动态的评论 -->
-    <div :class="{comment:true, show: moment.commentCount > 0}">
+    <div :class="{comment:true, show: Object.keys(moment.comments).length > 0}">
       <ul :id="'moment-comment-mark-'+ moment.id">
         <li
           v-for="commentInfo in moment.comments"
@@ -145,39 +145,18 @@
     </div>
   </div>
 </div>
-<div class="original-picture-wrapper" >
-  <transition name="fade">
-    <div class="shade" v-show="isShowShade"></div>
-  </transition>
-  <div class="picture-box" v-show="originalPictureWrapper" @click="pictureZoomOut"
-    ref="originalPictureBox">
-    <img src="" class="thumbnail"/>
-    <img src="" class="original-picture" v-show="isShowOriginalPicture" @load="originalOnload"/>
-  </div>
-</div>
-
-<div class="warning" v-show="warningMessage !== ''">
-  {{ warningMessage }}
-</div>
+<ViewTheImage ref="ViewTheImageWrapper"/>
 </template>
 <style lang="scss" scoped>
 @import '../style/viriables';
-
 .moment_list{
-  position: absolute;
-  top: .5rem;
-  right: 0;
-  left: 0;
-  bottom: .4rem;
-  overflow: scroll;
-}
-.moment_list::-webkit-scrollbar{
-  display: none;
+  padding: .24rem;
+  background-color: $bg-color-default;
 }
 .moment{
   width: 100%;
   min-height: 1.6rem;
-  padding: .12rem;
+  margin-bottom: .24rem;
   box-sizing: border-box;
   transition: all .3s ease;
   &_content{
@@ -186,12 +165,12 @@
   }
   .user{
     width: 100%;
-    height: .32rem;
+    height: .4rem;
     &_avatar{
-      width: .32rem;
+      width: .4rem;
       height: 100%;
       margin-right: .06rem;
-      border-radius: .16rem;
+      border-radius: 50%;
       overflow: hidden;
       float: left;
       img{
@@ -199,7 +178,7 @@
       }
     }
     &_name{
-      font-size: .14rem;
+      font-size: .16rem;
       font-weight: bold;
       // color: $font-color-light;
     }
@@ -423,40 +402,6 @@
     }
   }
 }
-.warning{
-  position: absolute;
-  top: -100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: .12rem;
-  background-color: rgba($warning-bg-color, 0.5);
-}
-.original-picture-wrapper{
-  .shade{
-    position:absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba($warning-bg-color, 1);
-    z-index: 9;
-  }
-  .picture-box{
-    position: absolute;
-    transition: all .3s ease;
-    z-index: 99;
-    img{
-      width: 100%;
-      height: auto;
-      transition: all .3s ease;
-    }
-    .original-picture{
-      position: absolute;
-      left: 0;
-      z-index: 100;
-    }
-  }
-}
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.5s;
@@ -468,54 +413,18 @@
 
 <script>
 import {
-  ref, computed, toRefs, nextTick,
+  ref,
+  computed,
+  toRefs,
 } from 'vue';
 import { useStore } from 'vuex';
-import { get, post } from '../utils/axios';
+import { post } from '../utils/axios';
 import { insertAfter, useCommentFromFunEffect } from '../js/tools';
 import defaultAvatar from '../images/default_avatar.jpg';
 import Storage from '../module/storage';
 
-// 滚动获取数据likeHandleClick
-const useGetMomentListEffect = (store) => {
-  const offset = ref(0);
-  const size = ref(5);
-  const getMomentList = async () => {
-    try {
-      const res = await get(`moment/list?offset=${offset.value}&size=${size.value}`);
-      res.forEach((obj) => {
-        store.state.momentList[obj.id] = obj;
-      });
-      offset.value += 5;
-      size.value += 5;
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  const pageOnscrollEvent = async (event) => {
-    const { target } = event;
-    if (target.scrollHeight - target.scrollTop - target.clientHeight < 50) {
-      await getMomentList();
-    }
-  };
-  const debounce = (func, delay) => {
-    let timer = null;
-    return function (...args) {
-      const context = this;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        func.apply(context, args);
-      }, delay);
-    };
-  };
-  nextTick(() => {
-    const momentListDOM = document.getElementById('momentWrapper');
-    momentListDOM.onscroll = debounce(pageOnscrollEvent, 200);
-    // const observer = new IntersectionObserver(debounce(pageOnscrollEvent, 200));
-    // observer.observe(momentListDOM);
-  });
-  return { getMomentList };
-};
+import ViewTheImage from './ViewTheImage.vue';
+
 // 点赞
 const useLikeEffect = (userInfo, momentList, loginIsShowFun) => {
   const likeHandleClick = async (momentId) => {
@@ -612,75 +521,6 @@ const useCommentEffect = (userInfo, momentList, loginIsShowFun) => {
     CCSendHandleClick,
   };
 };
-// 动态配图
-const useCommentPictureEffect = () => {
-  const originalPictureWrapper = ref(false);
-  const isShowOriginalPicture = ref(false);
-  const isShowShade = ref(false);
-  const originalPictureBox = ref(null);
-  const originalOnload = () => {
-    isShowOriginalPicture.value = true;
-  };
-  let smallPictureRect;
-  let pictureBox;
-  const pictureZoomIn = (event) => {
-    // 显示遮罩层
-    originalPictureWrapper.value = !originalPictureWrapper.value;
-    isShowShade.value = !isShowShade.value;
-    isShowOriginalPicture.value = false;
-    // 点击图片，加载高清大图
-    const { target } = event;
-    pictureBox = target.parentNode;
-    smallPictureRect = target.getBoundingClientRect();
-    originalPictureBox.value.style.cssText = `
-      top: ${smallPictureRect.top / 100}rem;
-      left: ${pictureBox.offsetLeft / 100}rem;
-      width: ${smallPictureRect.width / 100}rem;
-      height: ${smallPictureRect.height / 100}rem;
-      opacity: 0;
-    `;
-    const windowWidth = document.getElementById('momentWrapper').offsetWidth;
-    originalPictureBox.value.style.cssText = `
-      top: 50%;
-      left: 0rem;
-      width: ${windowWidth / 100}rem;
-      height: auto;
-      transform: translateY(-50%);
-      opacity: 1;
-    `;
-    // 先显示缩略图，再显示高清大图
-    originalPictureBox.value.childNodes[0].src = target.src;
-    // 替换字符串中的middle为master
-    const originalPictureSrc = target.src.replace(/middle/, 'master');
-    originalPictureBox.value.childNodes[1].src = originalPictureSrc;
-  };
-  let pictureLock = false;
-  const pictureZoomOut = () => {
-    if (pictureLock) return;
-    pictureLock = true;
-    isShowShade.value = !isShowShade.value;
-    originalPictureBox.value.style.cssText = `
-      top: ${smallPictureRect.top / 100}rem;
-      left: ${pictureBox.offsetLeft / 100}rem;
-      width: ${smallPictureRect.width / 100}rem;
-      height: ${smallPictureRect.height / 100}rem;
-      opacity: 0;
-    `;
-    setTimeout(() => {
-      pictureLock = false;
-      originalPictureWrapper.value = !originalPictureWrapper.value;
-    }, 300);
-  };
-  return {
-    pictureZoomIn,
-    pictureZoomOut,
-    originalPictureWrapper,
-    originalPictureBox,
-    originalOnload,
-    isShowOriginalPicture,
-    isShowShade,
-  };
-};
 // 时间：计算多久之前
 const useHowLongAgoEffect = () => {
   const howLongAgo = computed(() => (commentDate) => {
@@ -708,49 +548,28 @@ const useHowLongAgoEffect = () => {
   });
   return { howLongAgo };
 };
-// 警告提醒框
-const useWarningEffect = () => {
-  const warningMessage = ref('');
-  const warningFun = (message) => {
-    warningMessage.value = message;
-    setTimeout(() => {
-      warningMessage.value = '';
-    }, 1500);
-  };
-  return { warningMessage, warningFun };
-};
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
-  name: 'Comment',
+  name: 'Moment',
   props: {
     loginIsShowFun: {
       type: Function,
       required: true,
     },
   },
+  components: {
+    ViewTheImage,
+  },
   setup(props) {
     const { loginIsShowFun } = toRefs(props);
-    // 获取数据
     const store = useStore();
     const { userInfo, momentList } = toRefs(store.state);
     // 多久之前
     const { howLongAgo } = useHowLongAgoEffect();
-    const { getMomentList } = useGetMomentListEffect(store);
-    getMomentList(0, 5);
     // 喜欢
     const {
       likeHandleClick, handleLikeItOrNot,
     } = useLikeEffect(userInfo, momentList, loginIsShowFun);
-    // 图片点击展示大图
-    const {
-      pictureZoomIn,
-      pictureZoomOut,
-      originalPictureWrapper,
-      originalPictureBox,
-      originalOnload,
-      isShowOriginalPicture,
-      isShowShade,
-    } = useCommentPictureEffect();
     // 评论
     const {
       commentIconClick, commentFormWarpper, commentForm,
@@ -760,8 +579,8 @@ export default {
     const {
       textareaInput, textareaFocus, textareaPropUp, sendUnlock,
     } = useCommentFromFunEffect();
-
-    const { warningMessage, warningFun } = useWarningEffect();
+    // 查看图片
+    const ViewTheImageWrapper = ref(null);
 
     return {
       howLongAgo,
@@ -776,18 +595,11 @@ export default {
       textareaFocus,
       textareaPropUp,
       sendUnlock,
-      warningMessage,
-      warningFun,
       likeHandleClick,
       handleLikeItOrNot,
       userInfo,
-      pictureZoomIn,
-      pictureZoomOut,
-      originalPictureWrapper,
-      originalPictureBox,
-      originalOnload,
-      isShowOriginalPicture,
-      isShowShade,
+      ViewTheImage,
+      ViewTheImageWrapper,
     };
   },
 };

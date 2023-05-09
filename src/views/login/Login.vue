@@ -70,8 +70,13 @@
 </template>
 <style lang="scss" scoped>
 @import '../../style/viriables';
+.login_wrapper{
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 .masking{
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
@@ -80,7 +85,7 @@
   z-index: 2;
 }
 .login_box{
-  position: absolute;
+  position: fixed;
   left: 50%;
   top: 50%;
   width: 3.2rem;
@@ -160,7 +165,7 @@
 import {
   computed, reactive, ref,
 } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { post } from '../../utils/axios';
 import { insertAfter } from '../../js/tools';
@@ -210,7 +215,9 @@ const useLoginInEffect = (router, store, showWarningMessage, closeHandleClick) =
   };
   // 发送登录请求
   const loginIn = async (username, password) => {
+    console.log('发送登录请求');
     post('login', { username, password }).then((res) => {
+      console.log(res);
       const { user, token } = res;
       Storage.set('token', token);
       Storage.set('userInfo', JSON.stringify(user));
@@ -218,6 +225,7 @@ const useLoginInEffect = (router, store, showWarningMessage, closeHandleClick) =
       store.commit('loginInOrUp');
       closeHandleClick();
     }, (error) => {
+      console.log(error);
       showWarningMessage('login_in_account', error.data);
     });
   };
@@ -225,6 +233,7 @@ const useLoginInEffect = (router, store, showWarningMessage, closeHandleClick) =
   const loginInBtnClick = async (event) => {
     event.preventDefault();
     // 执行表单校验，通过后发送登录请求
+    console.log(loginInHandle());
     if (loginInHandle()) loginIn(loginInInfo.account, loginInInfo.password);
   };
   return {
@@ -345,8 +354,12 @@ export default {
   setup(props, { emit }) {
     const store = useStore();
     const router = useRouter();
+    const route = useRoute();
     // 隐藏界面
     const closeHandleClick = () => {
+      if (route.path === '/login') {
+        router.push('/');
+      }
       emit('update:modelValue', false);
     };
     // 登录注册页面切换
@@ -372,6 +385,7 @@ export default {
     } = useLoginUpEffect(showWarningMessage, closeHandleClick);
 
     return {
+      router,
       showLogin,
       changeShowLogin,
       warning,

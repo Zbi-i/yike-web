@@ -3,8 +3,14 @@ import Stroage from '../module/storage';
 
 export default createStore({
   state: {
-    token: Stroage.get('token') || '',
-    userInfo: JSON.parse(Stroage.get('userInfo')) || {},
+    token: Stroage?.get('token') || '',
+    userInfo: (function () {
+      try {
+        return JSON?.parse(Stroage.get('userInfo')) || {};
+      } catch (err) {
+        return {};
+      }
+    }()),
     momentList: {},
   },
   mutations: {

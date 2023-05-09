@@ -2,12 +2,19 @@
 html{
   font-size: 100px;
 }
+#app{
+  position: relative;
+  width: $pc-default-width;
+  height: 100%;
+  margin: 0 auto;
+}
 body{
   background-color: $bg-color-body;
   font-size: .14rem;
   color: $font-color-default;
   margin: 0;
   padding: 0;
+  overflow-y: scroll;
 }
 ul{
   padding: 0;
