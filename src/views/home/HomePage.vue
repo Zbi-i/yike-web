@@ -3,6 +3,7 @@
     <component
       :is="currentPage"
       :loginIsShowFun="loginIsShowFun"
+      :warningWrapper="warningWrapper"
       :userId="id">
     </component>
     <Docker :loginIsShowFun="loginIsShowFun"  :changePage="changePage"/>
@@ -22,19 +23,15 @@
 </style>
 
 <script>
-import { ref, toRefs } from 'vue';
+import { ref } from 'vue';
 import 'default-passive-events';
 import { useStore } from 'vuex';
 import Storage from '../../module/storage';
-
 import Docker from '../../components/Docker.vue';
 import Login from '../login/Login.vue';
 import Warning from '../../components/Warning.vue';
 import HomePageContent from './HomePageContent.vue';
 import MyHomePage from '../my/MyHomePage.vue';
-
-import { useGetMomentListEffect } from '../../js/scrollGetData';
-
 // 登录
 const useLoginEffect = () => {
   const loginIsShow = ref(false);
@@ -94,7 +91,7 @@ export default {
   },
   setup() {
     const store = useStore();
-    const { id } = toRefs(store.state.userInfo);
+    const { id } = store.state.userInfo;
     // 切换页面
     const { currentPage, changePage } = useChangePageEffect();
     // 登录
@@ -102,9 +99,6 @@ export default {
     // 提示用户登录
     useLoginWarningEffect(loginIsShowFun);
     const warningWrapper = ref(null);
-    // 获取数据
-    const { getMomentList, momentListDOM } = useGetMomentListEffect(store, 'moment/list', warningWrapper);
-    getMomentList();
     return {
       Docker,
       Login,
@@ -116,8 +110,6 @@ export default {
       loginIsShow,
       message,
       loginIsShowFun,
-      getMomentList,
-      momentListDOM,
       id,
     };
   },

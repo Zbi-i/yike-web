@@ -136,11 +136,6 @@
             :{{ commentInfo.content }}
           </span>
         </li>
-        <!-- 展开评论 -->
-        <!-- <div class="unfold_commont">
-          <div class="transverse_line"></div>
-          展开{{ moment.commentCount }}条评论<span class="iconfont icon-31xiala"></span>
-        </div> -->
       </ul>
     </div>
   </div>
@@ -151,6 +146,7 @@
 @import '../style/viriables';
 .moment_list{
   padding: .24rem;
+  min-height: 100vh;
   background-color: $bg-color-default;
 }
 .moment{
@@ -299,28 +295,6 @@
     li{
       width: 100%;
       line-height: .22rem;
-    }
-    .unfold_commont{
-      height: .24rem;
-      line-height: .24rem;
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      font-size: .12rem;
-      color: $font-color-light;
-      .transverse_line{
-        position: absolute;
-        left: -.15rem;
-        top: .125rem;
-        width: .12rem;
-        height: .01rem;
-        background-color: $font-color-light;
-      }
-      .icon-31xiala{
-        font-weight: bold;
-        font-size: .12rem;
-        margin-left: .02rem;
-      }
     }
   }
   .comment.show{

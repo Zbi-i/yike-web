@@ -5,8 +5,13 @@
     </transition>
     <div class="picture-box" v-show="originalPictureWrapper" @click="pictureZoomOut"
       ref="originalPictureBox">
-      <img src="" class="thumbnail" v-show="!isShowOriginalPicture"/>
-      <img src="" class="original-picture" v-show="isShowOriginalPicture" @load="originalOnload"/>
+      <img src="" class="thumbnail" cache-control="max-age=3600"
+        v-show="!isShowOriginalPicture"
+      />
+      <img src="" class="original-picture"
+       v-show="isShowOriginalPicture" @load="originalOnload"
+      />
+      <span v-show="!isShowOriginalPicture" class="on-load iconfont icon-jiazai"></span>
     </div>
   </div>
 </template>
@@ -25,13 +30,34 @@
   .picture-box{
     position: fixed;
     max-width: 100%;
-    transition: all 5s ease;
+    transition-property: all;
+    transition-duration: .3s;
+    transition-timing-function: ease;
     z-index: 99;
     img{
       width: 100%;
       height: auto;
       transition: all .3s ease;
     }
+  }
+}
+// 加载图标动画
+.on-load{
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: .24rem;
+  color: $font-color-light;
+  animation: rotate 1s linear infinite;
+}
+@keyframes rotate{
+  0%{
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100%{
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 </style>
@@ -44,6 +70,7 @@ const useCommentPictureEffect = () => {
   const isShowShade = ref(false);
   const originalPictureBox = ref(null);
   const originalOnload = () => {
+    console.log('加载完成');
     isShowOriginalPicture.value = true;
   };
   let pictureTarget;
@@ -59,19 +86,22 @@ const useCommentPictureEffect = () => {
     originalPictureBox.value.style.cssText = `
       top: ${smallPictureRect.top / 100}rem;
       left: ${smallPictureRect.left / 100}rem;
-      max-width: ${smallPictureRect.width / 100}rem;
+      width: ${smallPictureRect.width / 100}rem;
       height: ${smallPictureRect.height / 100}rem;
       opacity: 0;
     `;
     const windowWidth = document.getElementById('momentWrapper').offsetWidth;
-    originalPictureBox.value.style.cssText = `
-    top: 50%;
-    left: 50%;
-    max-width: 100%;
-    height: auto;
-    transform: translate(-50%, -50%);
-    opacity: 1;
-  `;
+    setTimeout(() => {
+      originalPictureBox.value.style.cssText = `
+      top: 50%;
+      left: 50%;
+      width: ${windowWidth / 100}rem;
+      height: auto;
+      transform: translate(-50%, -50%);
+      opacity: 1;
+    `;
+    }, 50);
+
     // 先显示缩略图，再显示高清大图
     originalPictureBox.value.childNodes[0].src = target.src;
     // 替换字符串中的middle为master
@@ -87,7 +117,7 @@ const useCommentPictureEffect = () => {
     originalPictureBox.value.style.cssText = `
       top: ${smallPictureRect.top / 100}rem;
       left: ${smallPictureRect.left / 100}rem;
-      max-width: ${smallPictureRect.width / 100}rem;
+      width: ${smallPictureRect.width / 100}rem;
       height: ${smallPictureRect.height / 100}rem;
       opacity: 0;
     `;

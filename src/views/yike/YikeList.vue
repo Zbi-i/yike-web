@@ -97,7 +97,7 @@ import { ref, reactive } from 'vue';
 import { get } from '../../utils/axios';
 
 const getYikeEffect = () => {
-  const size = 10;
+  const size = 1;
   const yikeList = ref({});
   const limit = reactive({
     offset: 0,

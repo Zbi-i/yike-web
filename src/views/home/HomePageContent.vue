@@ -23,7 +23,7 @@ main{
   margin-top: .4rem;
   padding-bottom: .4rem;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
 }
 nav{
   position: fixed;
@@ -57,9 +57,11 @@ nav{
 </style>
 
 <script>
-import { ref } from 'vue';
+import { ref, toRefs } from 'vue';
+import { useStore } from 'vuex';
 import YikeList from '../yike/YikeList.vue';
 import Moment from '../../components/Moment.vue';
+import ScrollGetData from '../../js/scrollGetData';
 // content标签内容切换
 const useNavEffect = () => {
   // comment/yike
@@ -79,17 +81,23 @@ export default {
       type: Function,
       required: true,
     },
-  },
-  userId: {
-    type: Number,
-    required: true,
+    warningWrapper: {
+      type: Function,
+      required: true,
+    },
   },
   components: {
     Moment,
     YikeList,
   },
-  setup() {
+  setup(props) {
+    const store = useStore();
+    const { warningWrapper } = toRefs(props);
     const { currentContent, navItemHandleClick } = useNavEffect();
+    // 获取数据
+    const GetData = new ScrollGetData();
+    const { momentList } = GetData.momentList('moment/list', warningWrapper);
+    store.state.momentList = momentList;
     return {
       currentContent,
       navItemHandleClick,

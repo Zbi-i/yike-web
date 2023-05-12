@@ -217,26 +217,24 @@
     }
   }
   .picture-list{
-    display: flex;
-    flex-wrap: wrap;
-    /*  两边盒子贴边,中间平分剩余空间(*常用*) */
-    justify-content: start;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    grid-gap: .06rem;
     margin-bottom: .12rem;
     div{
-      width: 1.1rem;
-      height: 1.1rem;
-      margin-bottom: .06rem;
-      margin-right: .06rem;
-    }
-    div:nth-of-type(3n+3){
-      margin-right: 0;
+      width: 1fr;
+      padding-top: 100%;
     }
     .picture{
       position: relative;
       img{
         position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        object-fit: cover;
         transition: all .05s ease;
       }
       img.pitchOn{
@@ -247,14 +245,21 @@
 
     }
     .add-picture{
-      line-height: 1.1rem;
-      text-align: center;
+      position: relative;
+      height: 0;
       font-size: .56rem;
       color: $font-color-light;
       background-color: $block-bg-color;
       input{
         display: none;
       }
+    }
+    .icon-jiahao_o:before{
+      display: block;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
     }
   }
   .picture-remove{

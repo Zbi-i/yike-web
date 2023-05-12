@@ -39,17 +39,21 @@
     </div>
     <div class="moment-wrapper">
       <ul class="activity-container">
-        <li class="active" @click="(event) => MSHandleClick(event, 'userMoment')">
+        <li class="active" @click="(event) => MSHandleClick(event, 'userMoments')">
           动态
         </li>
-        <li v-if="isUserHimself" @click="(event) => MSHandleClick(event, 'userPriveteMoment')">
+        <li v-if="isUserHimself" @click="(event) => MSHandleClick(event, 'userPrivateMoments')">
           私密
         </li>
-        <li @click="(event) => MSHandleClick(event, 'userLikeMoment')">
+        <li @click="(event) => MSHandleClick(event, 'userLikeMoments')">
           喜欢
         </li>
       </ul>
-      <div class="moment-list user-moments show">
+      <div :class="[
+        'moment-list',
+        'user-moments',
+        { show:momentType === 'userMoments' }
+      ]">
         <div v-for="moment in Object.values(userMomentData.userMoment).reverse()"
           :key="moment.id">
           <div :class="{'moment-item':true,  'plain-text': !moment.picture}">
@@ -80,8 +84,17 @@
           </div>
         </div>
       </div>
-      <div class="moment-list user-private-moments"></div>
-      <div class="moment-list user-like-moments">
+      <div :class="[
+        'moment-list',
+        'user-private-moments',
+        { show:momentType === 'userPrivateMoments' }
+      ]">
+      </div>
+      <div :class="[
+        'moment-list',
+        'user-like-moments',
+        { show:momentType === 'userLikeMoments' }
+        ]">
         <template v-for="moment in userMomentData.userLikeMoment" :key="moment.id">
           <div class="like-moment">
             <div class="moment-picture" v-if="moment.picture">
@@ -328,6 +341,7 @@
     }
     div.moment-list{
       display: none;
+      padding-bottom: .4rem;
     }
     .moment-list.show{
       display: block;
@@ -387,78 +401,48 @@
 </style>
 
 <script>
-import { reactive, ref } from 'vue';
+import { reactive, ref, toRefs } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
-import { get, post } from '../../utils/axios';
+import { get } from '../../utils/axios';
+import ScrollGetData from '../../js/scrollGetData';
 
-const useUserMomentEffect = (urlUserId, isUserHimself) => {
+const useUserMomentEffect = (urlUserId, isUserHimself, store, warningWrapper) => {
   const userMomentData = reactive({
     userMoment: {},
     userLikeMoment: {},
     userPrivateMoment: {},
   });
   // 每次获取的数据条数，
-  const size = 10;
-  const limit = reactive({
-    userMoment: {
-      offset: 0,
-      size,
-    },
-    userLikeMoment: {
-      offset: 0,
-      size,
-    },
-    userPrivateMoment: {
-      offset: 0,
-      size,
-    },
-  });
-  const getUserMoment = async () => {
-    const userMoment = await get(`moment/user/${urlUserId}
-      ?offset=${limit.userMoment.offset}&size=${limit.userMoment.size}`);
-    userMoment.forEach((moment) => {
-      userMomentData.userMoment[moment.id] = moment;
-    });
-    limit.userMoment.offset += size;
-    limit.userMoment.size += size;
-  };
-  const getUserLikeMoment = async () => {
-    const userLikeMoment = await get(`moment/user/${urlUserId}/like?offset=${limit.userLikeMoment.offset}&size=${limit.userLikeMoment.size}`);
-    userLikeMoment.forEach((moment) => {
-      userMomentData.userLikeMoment[moment.id] = moment;
-    });
-    limit.userLikeMoment.offset += size;
-    limit.userLikeMoment.size += size;
-  };
-  const getUserPrivateMoment = async () => {
-    if (isUserHimself) return;
-    const userPrivateMoment = await post(`moment/user/${urlUserId}/private
-      ?offset=${limit.userPrivateMoment.offset}&size=${limit.userPrivateMoment.size}`);
-    userPrivateMoment.forEach((moment) => {
-      userMomentData.userPrivateMoment[moment.id] = moment;
-    });
-    limit.userPrivateMoment.offset += size;
-    limit.userPrivateMoment.size += size;
-  };
-  getUserMoment();
-  getUserLikeMoment();
+  const momentType = ref('userMoment');
+
+  const getUserData = new ScrollGetData();
+  const { momentList } = getUserData.momentList(`moment/user/${urlUserId}`, warningWrapper);
+  userMomentData.userMoment = momentList;
+
   // 点击加载更多 ms = moment classify
   const MSHandleClick = (event, classify) => {
     const { target } = event;
     // 移除选中的样式，给当前点击的添加选中样式
     target.parentNode.querySelector('.active').classList.remove('active');
     target.classList.add('active');
-    if (classify === 'userMoment') {
-    } else if (classify === 'userLikeMoment') {
-    } else if (classify === 'userPrivateMoment') {
+    if (classify === 'userMoments') {
+      momentType.value = 'userMoments';
+    } else if (classify === 'userLikeMoments') {
+      momentType.value = 'userLikeMoments';
+      const getUserLike = new ScrollGetData();
+      const { momentList: momentLikeList } = getUserLike.momentList(`moment/user/${urlUserId}/like`, warningWrapper);
+      userMomentData.userLikeMoment = momentLikeList;
+    } else if (classify === 'userPrivateMoments') {
+      momentType.value = 'userPrivateMoments';
+      const getUserPrivate = new ScrollGetData();
+      const { momentList: momentPrivateList } = getUserPrivate.momentList(`moment/user/${urlUserId}/private`, warningWrapper, 'post');
+      userMomentData.userPrivateMoment = momentPrivateList;
     }
   };
   return {
+    momentType,
     userMomentData,
-    getUserMoment,
-    getUserLikeMoment,
-    getUserPrivateMoment,
     MSHandleClick,
   };
 };
@@ -499,33 +483,34 @@ export default {
       type: Function,
       default: () => {},
     },
+    warningWrapper: {
+      type: Function,
+      default: () => {},
+    },
   },
   setup(props) {
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
+    const { warningWrapper } = toRefs(props);
     const { userId } = props.userId ? props : route.params;
-    console.log(props);
+    console.log(userId);
     // 获取用户信息
     const { userInfo, isUserHimself } = useUserEffect(userId, store);
     // 获取用户动态
     const {
+      momentType,
       userMomentData,
-      getUserMoment,
-      getUserLikeMoment,
-      getUserPrivateMoment,
       MSHandleClick,
-    } = useUserMomentEffect(userId, isUserHimself);
+    } = useUserMomentEffect(userId, isUserHimself, store, warningWrapper);
     // 获取时间
     const { getDateFunc } = useDateEffect();
     return {
       router,
       userInfo,
       isUserHimself,
+      momentType,
       userMomentData,
-      getUserMoment,
-      getUserLikeMoment,
-      getUserPrivateMoment,
       MSHandleClick,
       getDateFunc,
     };
